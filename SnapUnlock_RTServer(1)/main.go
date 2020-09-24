@@ -24,6 +24,7 @@
 		 return true
 	 },
  }
+ 
  var steamBuffer *steamIO.SteamBuffer
  
  func receiver(c *gin.Context) {
@@ -35,7 +36,7 @@
 	 defer ws.Close()
 	 defer fmt.Println("receiver.Close")
 	 //// 以上可以不看
- 
+	 fmt.Println("receive.Open")
 	 soundSignal := make([]float64, 1920)
 	 soundMessage := make([]byte, 7685)
  
