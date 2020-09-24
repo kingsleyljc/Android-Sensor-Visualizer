@@ -12,6 +12,10 @@ import (
 	"SnapUnlock_RTServer/sensors"
 	"SnapUnlock_RTServer/util"
 	"fmt"
+	"os"
+	"io"
+	"strconv"
+	"encoding/csv"
 )
 
 type SteamBuffer struct {
@@ -24,18 +28,33 @@ type SteamBuffer struct {
 	SoundSignal chan []int
 }
 
+type FileBuffer struct{
+	AccelerometerSignal  chan [3]float32
+	SoundSignal chan []int
+}
+
 func InitSteamBuffer() *SteamBuffer {
 	var steamBuffer SteamBuffer
 
 	steamBuffer.AccelerometerSignal = make(chan [3]float32, 100)
 	steamBuffer.SoundSignal = make(chan []int, 100)
+	fileBuffer := InitFileBuffer()
 	// 防止chan溢出
-	go ReleaseExceededBuffer(&steamBuffer)
+	go ReleaseExceededBuffer(&steamBuffer,fileBuffer)
 	return &steamBuffer
 }
 
+func InitFileBuffer() *FileBuffer {
+	var fileBuffer FileBuffer
+	fileBuffer.AccelerometerSignal = make(chan [3]float32, 100)
+	return &fileBuffer
+}
+
+
 var soundSignal = make([]int, 1920)
 var sensorType int
+var Start_record bool 
+
 
 func Write2Buffer(message *[]byte, steamBuffer *SteamBuffer) {
 
@@ -57,13 +76,43 @@ func Write2Buffer(message *[]byte, steamBuffer *SteamBuffer) {
 		fmt.Println("UnknowSensor")
 	}
 }
+func save(fileBuffer *FileBuffer){
+	signal := <- fileBuffer.AccelerometerSignal
+	// filename := "hello.csv"
+	// tmp := []byte (signal)
+	// ioutil.WriteFile(filename,tmp,0666)
+	
+	newFileName := "./hello.csv"
+	nfs, err := os.OpenFile(newFileName, os.O_RDWR|os.O_CREATE, 0666)
+	err = err
+	defer nfs.Close()
+	nfs.Seek(0, io.SeekEnd)
+	w := csv.NewWriter(nfs)
+	//设置属性
+	w.Comma = ','
+	w.UseCRLF = true
+	row := []string{strconv.FormatFloat(float64(signal[0]),'f',-5,32),strconv.FormatFloat(float64(signal[1]),'f',-5,32),strconv.FormatFloat(float64(signal[2]),'f',-5,32)}
+	w.Write(row)
+	w.Flush()
+}
 
-func ReleaseExceededBuffer(steamBuffer *SteamBuffer) {
+func ReleaseExceededBuffer(steamBuffer *SteamBuffer, fileBuffer *FileBuffer) {
 	for {
 		if len(steamBuffer.AccelerometerSignal) > 90 {
 			AccelerometerSignal := <-steamBuffer.AccelerometerSignal // 改了一下
-			AccelerometerSignal = AccelerometerSignal
+			if Start_record == true{
+				fileBuffer.AccelerometerSignal  <- AccelerometerSignal
+				if len(fileBuffer.AccelerometerSignal)>90 {
+					save(fileBuffer)
+				}
+			} else {
+				if fileBuffer.AccelerometerSignal != nil{
+					save(fileBuffer)
+				}
+				AccelerometerSignal = AccelerometerSignal
+			}
 			//fmt.Printf("RelesseBuffer_ACC X: %v \n", AccelerometerSignal)
+			
 		}
 		if len(steamBuffer.SoundSignal) > 90 {
 			for i := 0; i <= 20; i++ {
