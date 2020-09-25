@@ -16,6 +16,7 @@
 	 "io"
 	 "strconv"
 	 "time"
+	//  "reflect"
 	 "encoding/csv"
  )
  
@@ -26,19 +27,19 @@
 	 // AxisY chan float32
 	 // AxisZ chan float32
 	 // RawSignal Size = 3840, convert to float64, size of soundSignal is 3840/2 = 1920
-	 SoundSignal chan []int
+	 SoundSignal chan []byte
  }
  
  type FileBuffer struct{
 	 AccelerometerSignal  chan [3]float32
-	 SoundSignal chan []int
+	 SoundSignal chan []byte
  }
  
  func InitSteamBuffer() *SteamBuffer {
 	 var steamBuffer SteamBuffer
  
 	 steamBuffer.AccelerometerSignal = make(chan [3]float32, 100)
-	 steamBuffer.SoundSignal = make(chan []int, 100)
+	 steamBuffer.SoundSignal = make(chan []byte, 1920)
  
 	 fileBuffer := InitFileBuffer()
  
@@ -50,12 +51,12 @@
  func InitFileBuffer() *FileBuffer {
 	 var fileBuffer FileBuffer
 	 fileBuffer.AccelerometerSignal = make(chan [3]float32, 100)
-	 fileBuffer.SoundSignal = make(chan []int, 100)
+	 fileBuffer.SoundSignal = make(chan []byte, 1920)
 	 return &fileBuffer
  }
  
  
- var soundSignal = make([]int, 1920)
+ var soundSignal = make([]byte, 1920)
  var sensorType int
  var Start_record bool
  
@@ -70,12 +71,12 @@
 		 steamBuffer.AccelerometerSignal <- [3]float32{util.Byte2Float32((*message)[5:9], util.LittleEndian), util.Byte2Float32((*message)[9:13], util.LittleEndian), util.Byte2Float32((*message)[13:17], util.LittleEndian)}
  
 	 case sensors.MICROPHONE: // 麦克风
-		 j := 0
-		 for i := 5; i < len(*message); i = i + 2 {
-			 soundSignal[j], _ = util.Bytes2Int((*message)[i:i+2], util.LittleEndian)
-			 j++
-		 }
-		 steamBuffer.SoundSignal <- soundSignal
+		//  j := 0
+		//  for i := 5; i < len(*message); i = i + 2 {
+		// 	 soundSignal[j], _ = util.Bytes2Int((*message)[i:i+2], util.LittleEndian)
+		// 	 j++
+		//  }
+		 steamBuffer.SoundSignal <- (*message)
 	 default:
 		 fmt.Println("UnknowSensor")
 	 }
@@ -105,17 +106,13 @@ func save_audio(fileBuffer *FileBuffer,filename string){
 	for{
 		if len(fileBuffer.SoundSignal)!=0{ //flag为true才输出
 			signal := <- fileBuffer.SoundSignal
+			// fmt.Println("audio:",reflect.TypeOf(signal))
+			fmt.Println("audio:",signal)
 			nfs, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0666)
 			err = err
 			defer nfs.Close()
 			nfs.Seek(0, io.SeekEnd)
-			w := csv.NewWriter(nfs)
-			//设置属性
-			w.Comma = ','
-			w.UseCRLF = true
-			row := []string{strconv.FormatFloat(float64(signal[0]),'f',-5,32),strconv.FormatFloat(float64(signal[1]),'f',-5,32),strconv.FormatFloat(float64(signal[2]),'f',-5,32)}
-			w.Write(row)
-			w.Flush()
+			nfs.Write(signal)
 		}
 	}
 }
@@ -141,15 +138,15 @@ func save_audio(fileBuffer *FileBuffer,filename string){
  
 		 }
  		// 音频buffer >80
-		 if len(steamBuffer.SoundSignal) > 90 {
-			 for i := 0; i <= 20; i++ {
+		 if len(steamBuffer.SoundSignal) > 100 {
+			 for i := 0; i <= 3; i++ {
 				 soundSignal := <-steamBuffer.SoundSignal
 				 if Start_record == true{ // 正在录制
 					fileBuffer.SoundSignal  <- soundSignal
 					if new_round_audio == true{
 					new_round_audio = false
 					   ti:=time.Now().Nanosecond()
-					   newFileName  := "./"+strconv.Itoa(ti)+"_audio.csv"
+					   newFileName  := "./"+strconv.Itoa(ti)+"_audio.pcm"
 					   go save_audio(fileBuffer,newFileName)
 					}
 				} else{

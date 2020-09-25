@@ -46,8 +46,8 @@
 		 if err != nil {
 			 break
 		 }
+		 steamIO.Write2Buffer(&message, steamBuffer)
 		 if len(message) == 17 {
-			 steamIO.Write2Buffer(&message, steamBuffer)
 			 // 不断地发送到manager需要broadcast的channel中
 			 manager.broadcast <- message
 		 } else {
@@ -65,7 +65,8 @@
 			 soundMessage[2] = message[2]
 			 soundMessage[3] = message[3]
 			 soundMessage[4] = message[4]
-			 for i, j := 0, 5; i < len(soundSignal); i++ {
+			 length := len(soundSignal)
+			 for i, j := 0, 5; i < length; i++ {
 				 res := util.Float32ToByte(float32(soundSignal[i]), util.LittleEndian)
 				 soundMessage[j] = res[0]
 				 j++
