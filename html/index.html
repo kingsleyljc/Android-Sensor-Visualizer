@@ -1,7 +1,7 @@
 <!--
  * @Author: your name
  * @Date: 2020-09-09 11:45:54
- * @LastEditTime: 2020-09-09 22:00:04
+ * @LastEditTime: 2020-09-25 21:43:28
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: \GoProject\SnapUnlock_RTServer\html\index.html
@@ -169,7 +169,7 @@
                 dom = document.getElementById("zcontainer");
                 this.myChart3 = echarts.init(dom);
                 this.myChart3.setOption(this.option3, true);
-                this.ws = new WebSocket("ws://172.31.73.216:7777/ws");
+                this.ws = new WebSocket("ws://192.168.1.103:7777/ws");
                 this.ws.binaryType = "arraybuffer";
                 this.ws.onopen = function (evt) {
                     console.log("Connection open ...");
